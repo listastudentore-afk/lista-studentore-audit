@@ -24,3 +24,26 @@ export async function rpc(name, body = {}) {
 
 export const HEADS_COLUMNS = ["recorded_at", "latest_id", "latest_hash", "log_rows", "total_votes", "generated_at"];
 export const HEX64 = /^[0-9a-f]{64}$/;
+
+/** The two independent chains. Same hash format; only the item column, the RPC names and the vote limit differ.
+ *  src/auditVerify.ts on the site has the same table: keep them identical. */
+export const CHAINS = {
+  main: {
+    title: "Main ranking",
+    headRpc: "get_audit_head", logRpc: "get_audit_log", totalsRpc: "get_vote_totals",
+    headsFile: "heads.csv",
+    itemKey: "nomination_id", itemsKey: "candidates", item: "candidate", itemRule: "a lowercase uuid",
+    itemPattern: /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
+    notListed: "which is not an approved candidate", countedLabel: "approved",
+    maxVotes: 3,
+  },
+  tirana: {
+    title: "Tirana 2027",
+    headRpc: "get_tirana_audit_head", logRpc: "get_tirana_audit_log", totalsRpc: "get_tirana_totals",
+    headsFile: "tirana-heads.csv",
+    itemKey: "option_id", itemsKey: "options", item: "option", itemRule: "a lowercase option key",
+    itemPattern: /^[a-z][a-z0-9_-]{0,31}$/,
+    notListed: "which is not an option in get_tirana_totals()", countedLabel: "on the ballot",
+    maxVotes: 1,
+  },
+};

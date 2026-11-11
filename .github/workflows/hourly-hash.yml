@@ -19,19 +19,25 @@ jobs:
         with:
           node-version: 22
 
-      - name: Record the current head
+      # Writes heads.csv (main ranking) and tirana-heads.csv (Tirana 2027). If one chain cannot be read,
+      # the other is still written; the step then fails, and the commit below still runs.
+      - name: Record the current heads
+        id: record
         run: node record-head.mjs
 
       # Generic GitHub Actions bot identity: no personal name or email in the history.
-      - name: Commit heads.csv
+      - name: Commit heads.csv and tirana-heads.csv
+        if: ${{ !cancelled() }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
-          git add heads.csv
+          for f in heads.csv tirana-heads.csv; do if [ -f "$f" ]; then git add "$f"; fi; done
+          git diff --cached --quiet && { echo "Nothing to commit"; exit 0; }
           git commit -m "Head $(date -u +%Y-%m-%dT%H:%MZ)"
           git push
 
-      # After the commit, so the head is published even when the recount fails.
+      # After the commit, so the heads are published even when the recount fails.
       # A failure shows as a red run in the public Actions tab.
-      - name: Full recount
+      - name: Full recount (both chains)
+        if: ${{ !cancelled() }}
         run: node verify.mjs
