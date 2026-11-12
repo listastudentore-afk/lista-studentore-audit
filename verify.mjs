@@ -26,6 +26,11 @@ const headsFor = {
   tirana: noHeads ? null : option("--tirana-heads") ?? join(here, CHAINS.tirana.headsFile),
 };
 const saveFile = option("--save");
+const statusFile = option("--status");
+if (statusFile && (only || noHeads)) {
+  console.error("--status requires both chains and published heads");
+  process.exit(2);
+}
 
 const ACTIONS = new Set(["snapshot", "insert", "delete"]);
 const HOUR = /^\d{4}-\d{2}-\d{2}T\d{2}:00:00Z$/;
@@ -171,25 +176,31 @@ function report(chain, data, result, headsFile) {
 async function main() {
   const names = only ? [only] : Object.keys(CHAINS);
   const downloaded = {};
+  const status = { checked_at: "", main: "FAIL", tirana: "FAIL", main_votes: 0, tirana_votes: 0, heads_checked: 0 };
+  let exitCode = 0;
+  console.log("Lista Studentore: vote log verification");
   for (const name of names) {
     try {
       downloaded[name] = await download(CHAINS[name]);
+      const result = check(CHAINS[name], downloaded[name], headsFor[name]);
+      if (statusFile && result.headsChecked === 0) result.failures.push("No published heads were checked");
+      report(CHAINS[name], downloaded[name], result, headsFor[name]);
+      status[name] = result.failures.length ? "FAIL" : "PASS";
+      status[`${name}_votes`] = result.recounted;
+      status.heads_checked += result.headsChecked;
+      if (result.failures.length) exitCode = Math.max(exitCode, 1);
     } catch (err) {
-      console.error(`Could not download the ${CHAINS[name].title} log: ${err.message}`);
-      process.exit(2);
+      console.error(`Could not verify the ${CHAINS[name].title} log: ${err.message}`);
+      exitCode = 2;
     }
   }
   if (saveFile) writeFileSync(saveFile, JSON.stringify({ downloaded_at: new Date().toISOString(), ...downloaded }, null, 1));
-
-  console.log("Lista Studentore: vote log verification");
-  let failed = false;
-  for (const name of names) {
-    const result = check(CHAINS[name], downloaded[name], headsFor[name]);
-    report(CHAINS[name], downloaded[name], result, headsFor[name]);
-    failed ||= result.failures.length > 0;
+  if (statusFile) {
+    status.checked_at = new Date().toISOString();
+    writeFileSync(statusFile, JSON.stringify(status, null, 2) + "\n");
   }
-  console.log(failed ? "\nFAIL" : "\nPASS");
-  process.exit(failed ? 1 : 0);
+  console.log(exitCode ? "\nFAIL" : "\nPASS");
+  process.exit(exitCode);
 }
 
 main();

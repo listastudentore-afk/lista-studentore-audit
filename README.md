@@ -22,7 +22,7 @@ publikë, secili një zinxhir më vete:
 | `action` | `snapshot` (vota ekzistuese ditën kur nisi regjistri), `insert` (votë e re), `delete` (votë e hequr) |
 | `voter_hash` | një kod i rastësishëm për çdo votues, i njëjtë për të gjitha votat e tij. **Nuk** është emaili dhe nuk mund të kthehet në email |
 | `nomination_id` | kandidati (vetëm te `vote_audit_log`) |
-| `option_id` | zgjedhja në Tirana 2027 (vetëm te `tirana_audit_log`): `alimehmeti`, `hasimja`, `binaj`, `qori`, `pashaj` ose `none` ("Asnjërin prej tyre") |
+| `option_id` | zgjedhja në Tirana 2027 (vetëm te `tirana_audit_log`): `alimehmeti`, `hasimja`, `binaj`, `qori`, `pashaj`, `bojaxhi`, `goxhaj` ose `none` ("Asnjërin prej tyre") |
 | `occurred_at` | vetëm ora (UTC), pa minuta: p.sh. çdo votë nga 14:00 deri 14:59 shënohet `14:00:00Z` |
 | `prev_hash`, `row_hash` | "gjurma" që lidh çdo rresht me të mëparshmin |
 
@@ -120,7 +120,7 @@ Each row contains:
 | `action` | `snapshot` (votes that existed the day the log started), `insert` (new vote), `delete` (vote removed) |
 | `voter_hash` | a random-looking code per voter, the same for all of that voter's votes. **Not** the email, and it cannot be turned back into one |
 | `nomination_id` | the candidate (`vote_audit_log` only) |
-| `option_id` | the Tirana 2027 choice (`tirana_audit_log` only): `alimehmeti`, `hasimja`, `binaj`, `qori`, `pashaj` or `none` ("none of them") |
+| `option_id` | the Tirana 2027 choice (`tirana_audit_log` only): `alimehmeti`, `hasimja`, `binaj`, `qori`, `pashaj`, `bojaxhi`, `goxhaj` or `none` ("none of them") |
 | `occurred_at` | the hour only (UTC), no minutes: every vote from 14:00 to 14:59 is recorded as `14:00:00Z` |
 | `prev_hash`, `row_hash` | the fingerprint that links each row to the one before it |
 
@@ -226,7 +226,7 @@ For `tirana_audit_log` the format is identical, with `option_id` in place of `no
 row_hash = sha256( prev_hash | id | action | voter_hash | option_id | occurred_at )
 ```
 
-where `option_id` is the option key as stored (`alimehmeti`, `hasimja`, `binaj`, `qori`, `pashaj`, `none`). The two logs
+where `option_id` is the option key as stored (`alimehmeti`, `hasimja`, `binaj`, `qori`, `pashaj`, `bojaxhi`, `goxhaj`, `none`). The two logs
 are separate chains: each has its own `GENESIS`, its own ids starting at 1 and its own head.
 
 Rows are hashed in `id` order. Gaps in `id` are normal (a rolled-back vote uses up a number). A gap in the
@@ -272,3 +272,33 @@ All are `POST {SUPABASE_URL}/rest/v1/rpc/<name>` with header `apikey: <publishab
 | `.github/workflows/hourly-hash.yml` | runs `record-head.mjs` every hour, commits both CSV files as the generic `github-actions[bot]`, then runs `verify.mjs` |
 
 To test against another database, set `AUDIT_SUPABASE_URL` and `AUDIT_SUPABASE_KEY`.
+
+
+## status.json — gjendja e kontrollit / verification status
+
+**Shqip.** Pas regjistrimit të `heads.csv` dhe `tirana-heads.csv`, workflow-i orar ekzekuton
+`node verify.mjs --status status.json` për të dy zinxhirët. Skedari publikohet në të njëjtin commit
+me gjurmët, edhe kur kontrolli dështon; më pas workflow-i mbetet me gabim. `FAIL` nuk fshihet.
+`checked_at` është koha UTC kur përfundoi kontrolli, `main` / `tirana` janë `PASS` ose `FAIL`,
+`main_votes` / `tirana_votes` janë votat e rinumëruara, dhe `heads_checked` është shuma e gjurmëve
+të kontrolluara në të dy skedarët CSV. Një gabim shkarkimi shënohet `FAIL`, me 0 vota për zinxhirin
+që nuk u lexua (0 nuk është pretendim për numrin real të votave). Pa gjurmë të publikuara nuk jepet `PASS`.
+Faqja lexon këtë përmbledhje një herë në ngarkim; një kontroll më i vjetër se 3 orë shfaqet portokalli,
+`FAIL` i cilitdo zinxhir shfaqet i kuq edhe kur është i vjetër, dhe një skedar që mungon ose është i pavlefshëm
+nuk shfaq status. `/verifiko` bën kontrollin e plotë kur e kërkon përdoruesi. Përmbledhja orare
+nuk është kontroll në kohë reale dhe nuk zëvendëson rinumërimin e pavarur.
+
+**English.** After recording both heads files, the hourly workflow runs
+`node verify.mjs --status status.json` for both chains. It commits the status together with the heads,
+even on verification failure, then the run remains failed. FAIL is public information.
+`checked_at` is the UTC completion time; `main` / `tirana` are `PASS` or `FAIL`;
+`main_votes` / `tirana_votes` are recounted active votes; `heads_checked` sums the checked CSV heads
+across both chains. A download error yields FAIL and a zero count for the unread chain; that zero is
+not a claim about the real vote total. Status mode requires at least one published head per chain for PASS.
+The site fetches this snapshot once per page load, marks checks older than three hours orange, gives
+FAIL priority in red, and hides missing or invalid status. `/verifiko` provides the full on-demand check.
+This hourly summary is not real-time verification and does not replace independent recounting.
+
+```json
+{"checked_at":"2026-11-12T10:20:00.000Z","main":"PASS","tirana":"PASS","main_votes":12345,"tirana_votes":130,"heads_checked":48}
+```
