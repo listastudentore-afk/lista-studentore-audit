@@ -1,4 +1,8 @@
-# Lista Studentore: verifikimi publik i votave / public vote verification
+### Ndryshime
+
+2026-11-13: Opsioni `goxhaj` u hoq me kërkesë të personit. Votat ekzistuese u fshinë përmes rrugës normale; rreshtat `delete` mbeten në regjistrin e auditimit, bashkë me historikun e mëparshëm.
+
+ Lista Studentore: verifikimi publik i votave / public vote verification
 
 [Shqip](#shqip) · [English](#english)
 
@@ -22,7 +26,7 @@ publikë, secili një zinxhir më vete:
 | `action` | `snapshot` (vota ekzistuese ditën kur nisi regjistri), `insert` (votë e re), `delete` (votë e hequr) |
 | `voter_hash` | një kod i rastësishëm për çdo votues, i njëjtë për të gjitha votat e tij. **Nuk** është emaili dhe nuk mund të kthehet në email |
 | `nomination_id` | kandidati (vetëm te `vote_audit_log`) |
-| `option_id` | zgjedhja në Tirana 2027 (vetëm te `tirana_audit_log`): `alimehmeti`, `hasimja`, `binaj`, `qori`, `pashaj`, `bojaxhi`, `goxhaj` ose `none` ("Asnjërin prej tyre") |
+| `option_id` | zgjedhja në Tirana 2027 (vetëm te `tirana_audit_log`): `alimehmeti`, `hasimja`, `binaj`, `qori`, `pashaj`, `bojaxhi` ose `none` ("Asnjërin prej tyre") |
 | `occurred_at` | vetëm ora (UTC), pa minuta: p.sh. çdo votë nga 14:00 deri 14:59 shënohet `14:00:00Z` |
 | `prev_hash`, `row_hash` | "gjurma" që lidh çdo rresht me të mëparshmin |
 
@@ -120,7 +124,7 @@ Each row contains:
 | `action` | `snapshot` (votes that existed the day the log started), `insert` (new vote), `delete` (vote removed) |
 | `voter_hash` | a random-looking code per voter, the same for all of that voter's votes. **Not** the email, and it cannot be turned back into one |
 | `nomination_id` | the candidate (`vote_audit_log` only) |
-| `option_id` | the Tirana 2027 choice (`tirana_audit_log` only): `alimehmeti`, `hasimja`, `binaj`, `qori`, `pashaj`, `bojaxhi`, `goxhaj` or `none` ("none of them") |
+| `option_id` | the Tirana 2027 choice (`tirana_audit_log` only): `alimehmeti`, `hasimja`, `binaj`, `qori`, `pashaj`, `bojaxhi` or `none` ("none of them") |
 | `occurred_at` | the hour only (UTC), no minutes: every vote from 14:00 to 14:59 is recorded as `14:00:00Z` |
 | `prev_hash`, `row_hash` | the fingerprint that links each row to the one before it |
 
@@ -226,7 +230,9 @@ For `tirana_audit_log` the format is identical, with `option_id` in place of `no
 row_hash = sha256( prev_hash | id | action | voter_hash | option_id | occurred_at )
 ```
 
-where `option_id` is the option key as stored (`alimehmeti`, `hasimja`, `binaj`, `qori`, `pashaj`, `bojaxhi`, `goxhaj`, `none`). The two logs
+Historical entries for the removed `goxhaj` option, including its deletes, remain valid and must still be hashed.
+
+The current option keys are (`alimehmeti`, `hasimja`, `binaj`, `qori`, `pashaj`, `bojaxhi`, `none`). The two logs
 are separate chains: each has its own `GENESIS`, its own ids starting at 1 and its own head.
 
 Rows are hashed in `id` order. Gaps in `id` are normal (a rolled-back vote uses up a number). A gap in the
